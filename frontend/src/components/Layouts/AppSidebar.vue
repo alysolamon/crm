@@ -292,7 +292,6 @@ const links = [
     label: 'Calendar',
     icon: CalendarIcon,
     to: 'Calendar',
-    condition: () => !props.mobile,
   },
   {
     label: 'Call Logs',
@@ -378,7 +377,15 @@ function getIcon(routeName, icon) {
 
 // A saved view's key is its name; a plain nav item's key is its route name.
 function currentRouteKey() {
-  return route.query.view || route.name
+  if (route.query.view) return route.query.view
+  return (
+    {
+      Lead: 'Leads',
+      Deal: 'Deals',
+      Contact: 'Contacts',
+      Organization: 'Organizations',
+    }[route.name] || route.name
+  )
 }
 
 // Set the highlight on click rather than waiting for the route, since route

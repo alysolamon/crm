@@ -34,21 +34,14 @@
       :submitButtonProps="{
         variant: 'solid',
         onClick: submitEmail,
-        disabled: emailEmpty,
+        disabled: emailEmpty || sending,
+        loading: sending,
       }"
       :discardButtonProps="{
-        onClick: async () => {
-          await deleteAttachedFiles()
-          showEmailBox = false
-          newEmailEditor.subject = subject
-          newEmailEditor.toEmails = doc.email ? [doc.email] : []
-          newEmailEditor.ccEmails = []
-          newEmailEditor.bccEmails = []
-          newEmailEditor.cc = false
-          newEmailEditor.bcc = false
-          newEmail = ''
-        },
+        onClick: discardEmailDraft,
       }"
+      :saveDraftButtonProps="{ onClick: saveEmailDraft }"
+      :draftKey="emailDraftKey"
       :editable="showEmailBox"
       :doctype="doctype"
       :subject="subject"
@@ -129,6 +122,11 @@ const newComment = useStorage(
 )
 const newEmailEditor = ref(null)
 const newCommentEditor = ref(null)
+const sending = ref(false)
+
+const emailDraftKey = computed(
+  () => `${getUser().email}-${props.doctype}-${doc.value.name}`,
+)
 
 const attachments = useStorage(
   `attachments-${getUser().email}-${props.doctype}-${doc.value.name}`,
@@ -265,28 +263,44 @@ async function deleteAttachedFiles() {
 }
 
 async function submitEmail() {
-  if (emailEmpty.value) return
-  showEmailBox.value = false
+  if (emailEmpty.value || sending.value) return
+  sending.value = true
   // toast.promise returns the toast id (not the promise), so await the send
   // itself — otherwise the reload below fires before the email is committed and
   // the new email is missing from the refetched list.
-  const sending = sendMail()
-  toast.promise(sending, {
+  const sendPromise = sendMail()
+  toast.promise(sendPromise, {
     loading: __('Sending email...'),
     success: __('Email sent'),
     error: (e) => e?.messages?.[0] || __('Failed to send email!'),
   })
   try {
-    await sending
+    await sendPromise
   } catch {
+    sending.value = false
     return
   }
+  sending.value = false
+  showEmailBox.value = false
   newEmail.value = ''
   attachments.value = []
+  newEmailEditor.value?.clearDraft()
   reload.value = true
   emit('scroll')
   capture('email_sent', { doctype: props.doctype })
   updateOnboardingStep('send_first_email')
+}
+
+function saveEmailDraft() {
+  showEmailBox.value = false
+  toast.success(__('Draft saved on this device'))
+}
+
+async function discardEmailDraft() {
+  await deleteAttachedFiles()
+  newEmail.value = ''
+  newEmailEditor.value?.clearDraft()
+  showEmailBox.value = false
 }
 
 async function submitComment() {

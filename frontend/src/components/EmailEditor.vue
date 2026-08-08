@@ -100,7 +100,8 @@
       <EditorContent
         :class="[
           'prose-sm max-w-none [&_p.reply-to-content]:hidden',
-          editable && 'mx-4 max-h-[35vh] overflow-y-auto border-t py-3',
+          editable &&
+            'mx-4 min-h-56 max-h-[55vh] resize-y overflow-auto border-t py-3 [&_.ProseMirror]:min-h-48',
         ]"
       />
       <EditorTableMenu />
@@ -164,6 +165,11 @@
           <div class="mt-2 flex items-center justify-end space-x-2 sm:mt-0">
             <Button v-bind="discardButtonProps || {}" :label="__('Discard')" />
             <Button
+              v-if="saveDraftButtonProps"
+              v-bind="saveDraftButtonProps"
+              :label="__('Save draft')"
+            />
+            <Button
               variant="solid"
               v-bind="submitButtonProps || {}"
               :label="`${__('Send')} (${submitShortcutLabel})`"
@@ -204,6 +210,7 @@ import { useTelemetry } from 'frappe-ui/frappe'
 import { useDocument } from '@/data/document'
 import { validateEmail, submitShortcutLabel } from '@/utils'
 import Paragraph from '@tiptap/extension-paragraph'
+import { useStorage } from '@vueuse/core'
 import { ref, computed, nextTick, inject, watch } from 'vue'
 
 const props = defineProps({
@@ -214,6 +221,8 @@ const props = defineProps({
   editorProps: { type: Object, default: () => ({}) },
   submitButtonProps: { type: Object, default: () => ({}) },
   discardButtonProps: { type: Object, default: () => ({}) },
+  saveDraftButtonProps: { type: Object, default: null },
+  draftKey: { type: String, default: '' },
 })
 
 const CustomParagraph = Paragraph.extend({
@@ -250,13 +259,51 @@ const cc = ref(false)
 const bcc = ref(false)
 const emoji = ref('')
 
-const subject = ref(props.subject)
-const fromEmail = ref('')
-const toEmails = ref(modelValue.value.email ? [modelValue.value.email] : [])
-const ccEmails = ref([])
-const bccEmails = ref([])
+const savedEnvelope = useStorage(
+  `emailEnvelope-${props.draftKey || 'temporary'}`,
+  {
+    subject: props.subject,
+    fromEmail: '',
+    toEmails: modelValue.value.email ? [modelValue.value.email] : [],
+    ccEmails: [],
+    bccEmails: [],
+    cc: false,
+    bcc: false,
+  },
+  localStorage,
+  { mergeDefaults: true },
+)
+const subject = ref(savedEnvelope.value.subject || props.subject)
+const fromEmail = ref(savedEnvelope.value.fromEmail || '')
+const toEmails = ref(
+  savedEnvelope.value.toEmails?.length
+    ? savedEnvelope.value.toEmails
+    : modelValue.value.email
+      ? [modelValue.value.email]
+      : [],
+)
+const ccEmails = ref(savedEnvelope.value.ccEmails || [])
+const bccEmails = ref(savedEnvelope.value.bccEmails || [])
+cc.value = Boolean(savedEnvelope.value.cc || ccEmails.value.length)
+bcc.value = Boolean(savedEnvelope.value.bcc || bccEmails.value.length)
 const ccInput = ref(null)
 const bccInput = ref(null)
+
+watch(
+  [subject, fromEmail, toEmails, ccEmails, bccEmails, cc, bcc],
+  () => {
+    savedEnvelope.value = {
+      subject: subject.value,
+      fromEmail: fromEmail.value,
+      toEmails: toEmails.value,
+      ccEmails: ccEmails.value,
+      bccEmails: bccEmails.value,
+      cc: cc.value,
+      bcc: bcc.value,
+    }
+  },
+  { deep: true },
+)
 
 const extensions = buildEditorExtensions({
   starterKit: { paragraph: false },
@@ -332,6 +379,25 @@ function toggleBCC() {
   if (bcc.value) nextTick(() => bccInput.value.setFocus())
 }
 
+function clearDraft() {
+  subject.value = props.subject
+  fromEmail.value = ''
+  toEmails.value = modelValue.value.email ? [modelValue.value.email] : []
+  ccEmails.value = []
+  bccEmails.value = []
+  cc.value = false
+  bcc.value = false
+  savedEnvelope.value = {
+    subject: props.subject,
+    fromEmail: '',
+    toEmails: toEmails.value,
+    ccEmails: [],
+    bccEmails: [],
+    cc: false,
+    bcc: false,
+  }
+}
+
 defineExpose({
   editor,
   subject,
@@ -341,5 +407,6 @@ defineExpose({
   toEmails,
   ccEmails,
   bccEmails,
+  clearDraft,
 })
 </script>

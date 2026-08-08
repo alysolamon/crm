@@ -154,19 +154,21 @@
                   "
                 />
                 <Button
-                  :tooltip="__('Go to Website')"
-                  :icon="LinkIcon"
+                  v-if="doc.linkedin || doc.custom_alfint_enrichment_linkedin"
+                  :tooltip="__('Open LinkedIn profile')"
+                  icon="lucide-linkedin"
                   @click="
-                    doc.website
-                      ? openWebsite(doc.website)
-                      : toast.error(__('Please set a website to visit'))
+                    openWebsite(
+                      doc.linkedin || doc.custom_alfint_enrichment_linkedin,
+                    )
                   "
                 />
 
                 <Button
-                  :tooltip="__('Attach a File')"
-                  :icon="AttachmentIcon"
-                  @click="showFilesUploader = true"
+                  v-if="doc.twitter || doc.custom_alfint_x_profile"
+                  :tooltip="__('Open X profile')"
+                  icon="lucide-twitter"
+                  @click="openWebsite(doc.twitter || doc.custom_alfint_x_profile)"
                 />
 
                 <Button
@@ -255,7 +257,6 @@ import NoteIcon from '@/components/Icons/NoteIcon.vue'
 import WhatsAppIcon from '@/components/Icons/WhatsAppIcon.vue'
 import IndicatorIcon from '@/components/Icons/IndicatorIcon.vue'
 import CameraIcon from '@/components/Icons/CameraIcon.vue'
-import LinkIcon from '@/components/Icons/LinkIcon.vue'
 import AttachmentIcon from '@/components/Icons/AttachmentIcon.vue'
 import LostReasonModal from '@/components/Modals/LostReasonModal.vue'
 import LayoutHeader from '@/components/LayoutHeader.vue'

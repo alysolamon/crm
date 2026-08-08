@@ -154,6 +154,13 @@
           :columns="columns"
           :options="{ selectable: false, showTooltip: false }"
         />
+        <LeadsListView
+          v-if="tab.label === 'Leads' && rows.length"
+          class="mt-4"
+          :rows="rows"
+          :columns="columns"
+          :options="{ selectable: false, showTooltip: false }"
+        />
         <ContactsListView
           v-if="tab.label === 'Contacts' && rows.length"
           class="mt-4"
@@ -190,10 +197,12 @@ import SidePanelLayout from '@/components/SidePanelLayout.vue'
 import Icon from '@/components/Icon.vue'
 import LayoutHeader from '@/components/LayoutHeader.vue'
 import DealsListView from '@/components/ListViews/DealsListView.vue'
+import LeadsListView from '@/components/ListViews/LeadsListView.vue'
 import ContactsListView from '@/components/ListViews/ContactsListView.vue'
 import WebsiteIcon from '@/components/Icons/WebsiteIcon.vue'
 import CameraIcon from '@/components/Icons/CameraIcon.vue'
 import DealsIcon from '@/components/Icons/DealsIcon.vue'
+import LeadsIcon from '@/components/Icons/LeadsIcon.vue'
 import ContactsIcon from '@/components/Icons/ContactsIcon.vue'
 import DeleteLinkedDocModal from '@/components/DeleteLinkedDocModal.vue'
 import CustomActions from '@/components/CustomActions.vue'
@@ -389,6 +398,11 @@ const tabs = [
     count: computed(() => deals.data?.length),
   },
   {
+    label: 'Leads',
+    icon: LeadsIcon,
+    count: computed(() => relationships.data?.leads?.length || 0),
+  },
+  {
     label: 'Contacts',
     icon: ContactsIcon,
     count: computed(() => contacts.data?.length),
@@ -431,29 +445,58 @@ const contacts = createListResource({
     'company_name',
     'modified',
   ],
-  filters: {
-    company_name: props.organizationId,
-  },
+  filters: { custom_alfint_organization: props.organizationId },
   orderBy: 'modified desc',
   pageLength: 20,
   auto: true,
 })
 
+const relationships = createResource({
+  url: 'alfint_relationships.api.sales.get_organization_relationships',
+  cache: ['alfintOrganizationRelationships', props.organizationId],
+  params: { organization: props.organizationId },
+  auto: true,
+})
+
 const rows = computed(() => {
-  let list = !tabIndex.value ? deals : contacts
-
-  if (!list.data) return []
-
-  return list.data.map((row) => {
-    return !tabIndex.value ? getDealRowObject(row) : getContactRowObject(row)
-  })
+  if (tabIndex.value === 0) {
+    return (deals.data || []).map(getDealRowObject)
+  }
+  if (tabIndex.value === 1) {
+    return (relationships.data?.leads || []).map(getLeadRowObject)
+  }
+  return (contacts.data || []).map(getContactRowObject)
 })
 
 const { getFormattedCurrency } = getMeta('CRM Deal')
 
 const columns = computed(() => {
-  return tabIndex.value === 0 ? dealColumns : contactColumns
+  if (tabIndex.value === 0) return dealColumns
+  if (tabIndex.value === 1) return leadColumns
+  return contactColumns
 })
+
+function getLeadRowObject(lead) {
+  return {
+    name: lead.name,
+    lead_name: {
+      label: lead.lead_name,
+      image: lead.image,
+      image_label: lead.first_name || lead.lead_name,
+    },
+    status: {
+      label: lead.status,
+      color: getLeadStatus(lead.status)?.color,
+    },
+    email: lead.email,
+    mobile_no: lead.mobile_no,
+    lead_owner: {
+      label: lead.lead_owner && getUser(lead.lead_owner).full_name,
+      ...(lead.lead_owner && getUser(lead.lead_owner)),
+    },
+    modified: timestampCell(lead.modified),
+  }
+}
 
 function getDealRowObject(deal) {
   return {
@@ -560,6 +603,15 @@ const contactColumns = [
     key: 'modified',
     width: '8rem',
   },
+]
+
+const leadColumns = [
+  { label: __('Name'), key: 'lead_name', width: '15rem' },
+  { label: __('Status'), key: 'status', width: '10rem' },
+  { label: __('Email'), key: 'email', width: '14rem' },
+  { label: __('Mobile Number'), key: 'mobile_no', width: '11rem' },
+  { label: __('Lead Owner'), key: 'lead_owner', width: '10rem' },
+  { label: __('Last Modified'), key: 'modified', width: '8rem' },
 ]
 
 const { showModal } = useDoctypeModal()
