@@ -68,7 +68,7 @@ import { globalStore } from '@/stores/global'
 import { usersStore } from '@/stores/users'
 import { showQuickEntryModal, quickEntryProps } from '@/composables/modals'
 import { isMobileView } from '@/composables/settings'
-import { setupCustomizations } from '@/utils'
+import { deepClone, setupCustomizations } from '@/utils'
 import { call, createResource, toast } from 'frappe-ui'
 import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
@@ -173,10 +173,13 @@ watch(
 )
 
 onMounted(async () => {
-  document.doc = {
-    ...document.doc,
-    ...props.defaults,
-  }
+  document.doc = props.docname
+    ? { ...document.doc, ...deepClone(props.defaults) }
+    : {
+        __newDocument: true,
+        doctype: props.doctype,
+        ...deepClone(props.defaults),
+      }
   await triggerOnRender()
 })
 </script>

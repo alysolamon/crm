@@ -98,12 +98,29 @@
         </div>
       </div>
       <EditorContent
+        :style="editable ? { height: `${composerHeight}px` } : undefined"
         :class="[
           'prose-sm max-w-none [&_p.reply-to-content]:hidden',
           editable &&
-            'mx-4 min-h-56 max-h-[55vh] resize-y overflow-auto border-t py-3 [&_.ProseMirror]:min-h-48',
+            'mx-4 overflow-auto border-t py-3 [&_.ProseMirror]:min-h-full',
         ]"
       />
+      <div
+        v-if="editable"
+        role="separator"
+        aria-orientation="horizontal"
+        :aria-label="__('Drag to resize the email editor')"
+        :aria-valuemin="MIN_COMPOSER_HEIGHT"
+        :aria-valuemax="maxComposerHeight"
+        :aria-valuenow="composerHeight"
+        tabindex="0"
+        class="group mx-4 flex h-5 cursor-row-resize touch-none items-center justify-center border-t text-ink-gray-4 outline-none hover:text-ink-gray-7 focus-visible:ring-2 focus-visible:ring-outline-gray-3"
+        :title="__('Drag up or down to resize')"
+        @pointerdown="startComposerResize"
+        @keydown="resizeComposerWithKeyboard"
+      >
+        <DragIcon class="transition-colors" />
+      </div>
       <EditorTableMenu />
       <div v-if="editable" class="flex flex-col gap-2">
         <div class="flex flex-wrap gap-2 px-4">
@@ -191,6 +208,7 @@ import IconPicker from '@/components/IconPicker.vue'
 import SmileIcon from '@/components/Icons/SmileIcon.vue'
 import EmailTemplateIcon from '@/components/Icons/EmailTemplateIcon.vue'
 import AttachmentIcon from '@/components/Icons/AttachmentIcon.vue'
+import DragIcon from '@/components/Icons/DragIcon.vue'
 import AttachmentItem from '@/components/AttachmentItem.vue'
 import EmailMultiSelect from '@/components/Controls/EmailMultiSelect.vue'
 import EmailTemplateSelectorModal from '@/components/Modals/EmailTemplateSelectorModal.vue'
@@ -211,7 +229,7 @@ import { useDocument } from '@/data/document'
 import { validateEmail, submitShortcutLabel } from '@/utils'
 import Paragraph from '@tiptap/extension-paragraph'
 import { useStorage } from '@vueuse/core'
-import { ref, computed, nextTick, inject, watch } from 'vue'
+import { ref, computed, nextTick, inject, onBeforeUnmount, watch } from 'vue'
 
 const props = defineProps({
   placeholder: { type: String, default: null },
@@ -258,6 +276,58 @@ const textEditor = ref(null)
 const cc = ref(false)
 const bcc = ref(false)
 const emoji = ref('')
+const MIN_COMPOSER_HEIGHT = 224
+const maxComposerHeight = computed(() =>
+  typeof window === 'undefined'
+    ? 720
+    : Math.max(MIN_COMPOSER_HEIGHT, Math.floor(window.innerHeight * 0.7)),
+)
+const composerHeight = useStorage(
+  `emailComposerHeight-${props.draftKey || 'temporary'}`,
+  320,
+)
+let resizeStartY = 0
+let resizeStartHeight = 0
+
+function clampComposerHeight(height) {
+  return Math.min(
+    maxComposerHeight.value,
+    Math.max(MIN_COMPOSER_HEIGHT, height),
+  )
+}
+
+function startComposerResize(event) {
+  event.preventDefault()
+  resizeStartY = event.clientY
+  resizeStartHeight = Number(composerHeight.value)
+  document.body.style.cursor = 'row-resize'
+  document.body.style.userSelect = 'none'
+  window.addEventListener('pointermove', resizeComposer)
+  window.addEventListener('pointerup', stopComposerResize, { once: true })
+}
+
+function resizeComposer(event) {
+  composerHeight.value = clampComposerHeight(
+    resizeStartHeight + event.clientY - resizeStartY,
+  )
+}
+
+function stopComposerResize() {
+  document.body.style.cursor = ''
+  document.body.style.userSelect = ''
+  window.removeEventListener('pointermove', resizeComposer)
+}
+
+function resizeComposerWithKeyboard(event) {
+  if (!['ArrowUp', 'ArrowDown'].includes(event.key)) return
+  event.preventDefault()
+  const delta = event.key === 'ArrowDown' ? 32 : -32
+  composerHeight.value = clampComposerHeight(
+    Number(composerHeight.value) + delta,
+  )
+}
+
+onBeforeUnmount(stopComposerResize)
 
 const savedEnvelope = useStorage(
   `emailEnvelope-${props.draftKey || 'temporary'}`,

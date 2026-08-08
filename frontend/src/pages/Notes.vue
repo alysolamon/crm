@@ -55,12 +55,11 @@
             />
           </Dropdown>
         </div>
-        <TextEditor
+        <NoteContent
           v-if="note.content"
           :content="note.content"
-          :editable="false"
-          editor-class="prose-sm text-p-sm max-w-none text-ink-gray-5 focus:outline-none"
-          class="flex-1 overflow-hidden"
+          compact
+          class="flex-1 text-p-sm text-ink-gray-5"
         />
         <div class="mt-2 flex items-center justify-between gap-2">
           <div class="flex items-center gap-2">
@@ -96,13 +95,14 @@ import ViewBreadcrumbs from '@/components/ViewBreadcrumbs.vue'
 import LayoutHeader from '@/components/LayoutHeader.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import NoteIcon from '@/components/Icons/NoteIcon.vue'
+import NoteContent from '@/components/Notes/NoteContent.vue'
 import ViewControls from '@/components/ViewControls.vue'
 import { useDoctypeModal } from '@/composables/doctypeModal'
 import EmptyState from '@/components/ListViews/EmptyState.vue'
 import { usersStore } from '@/stores/users'
 import { timeAgo, formatDate } from '@/utils'
 import { useOnboarding, useTelemetry } from 'frappe-ui/frappe'
-import { TextEditor, call, Dropdown, Tooltip, ListFooter } from 'frappe-ui'
+import { call, Dropdown, Tooltip, ListFooter } from 'frappe-ui'
 import { ref, watch } from 'vue'
 
 const { getUser } = usersStore()

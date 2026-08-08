@@ -25,12 +25,11 @@
         />
       </Dropdown>
     </div>
-    <TextEditor
+    <NoteContent
       v-if="note.content"
       :content="note.content"
-      :editable="false"
-      editor-class="prose-sm text-p-sm max-w-none text-ink-gray-5 focus:outline-none"
-      class="flex-1 overflow-hidden"
+      compact
+      class="flex-1 text-p-sm text-ink-gray-5"
     />
     <div class="mt-1 flex items-center justify-between gap-2">
       <div class="flex items-center gap-2 truncate">
@@ -52,7 +51,8 @@
 <script setup>
 import UserAvatar from '@/components/UserAvatar.vue'
 import TimelineTimestamp from '@/components/Activities/TimelineTimestamp.vue'
-import { Dropdown, TextEditor, call, toast } from 'frappe-ui'
+import NoteContent from '@/components/Notes/NoteContent.vue'
+import { Dropdown, call, toast } from 'frappe-ui'
 import { usersStore } from '@/stores/users'
 
 defineProps({

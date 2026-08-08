@@ -168,8 +168,17 @@
           :columns="columns"
           :options="{ selectable: false, showTooltip: false }"
         />
+        <NotesList
+          v-if="tab.label === 'Notes' && relationships.data?.notes?.length"
+          :notes="relationships.data.notes"
+          @reload="relationships.reload"
+        />
         <EmptyState
-          v-if="!rows.length"
+          v-if="
+            tab.label === 'Notes'
+              ? !relationships.data?.notes?.length
+              : !rows.length
+          "
           :icon="tab.icon"
           :name="__(tab.label)"
         />
@@ -199,11 +208,13 @@ import LayoutHeader from '@/components/LayoutHeader.vue'
 import DealsListView from '@/components/ListViews/DealsListView.vue'
 import LeadsListView from '@/components/ListViews/LeadsListView.vue'
 import ContactsListView from '@/components/ListViews/ContactsListView.vue'
+import NotesList from '@/components/Notes/NotesList.vue'
 import WebsiteIcon from '@/components/Icons/WebsiteIcon.vue'
 import CameraIcon from '@/components/Icons/CameraIcon.vue'
 import DealsIcon from '@/components/Icons/DealsIcon.vue'
 import LeadsIcon from '@/components/Icons/LeadsIcon.vue'
 import ContactsIcon from '@/components/Icons/ContactsIcon.vue'
+import NoteIcon from '@/components/Icons/NoteIcon.vue'
 import DeleteLinkedDocModal from '@/components/DeleteLinkedDocModal.vue'
 import CustomActions from '@/components/CustomActions.vue'
 import EnrichFromWebsite from '@/components/EnrichFromWebsite.vue'
@@ -407,6 +418,11 @@ const tabs = [
     icon: ContactsIcon,
     count: computed(() => contacts.data?.length),
   },
+  {
+    label: 'Notes',
+    icon: NoteIcon,
+    count: computed(() => relationships.data?.notes?.length || 0),
+  },
 ]
 
 const deals = createListResource({
@@ -465,6 +481,7 @@ const rows = computed(() => {
   if (tabIndex.value === 1) {
     return (relationships.data?.leads || []).map(getLeadRowObject)
   }
+  if (tabIndex.value === 3) return []
   return (contacts.data || []).map(getContactRowObject)
 })
 
@@ -473,6 +490,7 @@ const { getFormattedCurrency } = getMeta('CRM Deal')
 const columns = computed(() => {
   if (tabIndex.value === 0) return dealColumns
   if (tabIndex.value === 1) return leadColumns
+  if (tabIndex.value === 3) return []
   return contactColumns
 })
 
