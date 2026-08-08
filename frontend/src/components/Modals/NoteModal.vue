@@ -107,42 +107,9 @@
       </template>
 
       <template v-else>
-        <div
-          v-if="showReferencePicker"
-          class="mb-5 rounded-lg border bg-surface-gray-1 p-4"
-        >
-          <div class="mb-3">
-            <div class="text-base-medium text-ink-gray-9">
-              {{ __('Linked record') }}
-            </div>
-            <div class="mt-1 text-sm text-ink-gray-6">
-              {{
-                __(
-                  'Every note belongs to one Lead, Deal, Organization, or Contact.',
-                )
-              }}
-            </div>
-          </div>
-          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <FormControl
-              v-model="referenceDoctype"
-              type="select"
-              :label="__('Record type')"
-              :options="referenceTypeOptions"
-              :placeholder="__('Select a record type')"
-            />
-            <Link
-              v-if="referenceDoctype"
-              v-model="referenceDocname"
-              :doctype="referenceDoctype"
-              :label="__('Record')"
-              :placeholder="__('Select the linked record')"
-            />
-          </div>
-        </div>
         <FieldLayout
-          v-if="layout.data"
-          :tabs="layout.data"
+          v-if="editLayout.length"
+          :tabs="editLayout"
           :data="doc"
           :doctype="doctype"
           :docname="docname"
@@ -171,7 +138,6 @@ import CustomActions from '@/components/CustomActions.vue'
 import EditIcon from '@/components/Icons/EditIcon.vue'
 import FieldLayout from '@/components/FieldLayout/FieldLayout.vue'
 import NoteContent from '@/components/Notes/NoteContent.vue'
-import Link from '@/components/Controls/Link.vue'
 import { useDocument } from '@/data/document'
 import { globalStore } from '@/stores/global'
 import { usersStore } from '@/stores/users'
@@ -184,7 +150,6 @@ import {
   call,
   createResource,
   ErrorMessage,
-  FormControl,
   LoadingIndicator,
   toast,
 } from 'frappe-ui'
@@ -222,21 +187,6 @@ const referenceTypeOptions = [
   { label: __('Organization'), value: 'CRM Organization' },
   { label: __('Contact'), value: 'Contact' },
 ]
-
-const referenceDoctype = computed({
-  get: () => doc.value.reference_doctype || '',
-  set: (value) => {
-    document.doc.reference_doctype = value || ''
-    document.doc.reference_docname = ''
-  },
-})
-
-const referenceDocname = computed({
-  get: () => doc.value.reference_docname || '',
-  set: (value) => {
-    document.doc.reference_docname = value || ''
-  },
-})
 
 const showReferencePicker = computed(
   () =>
@@ -282,6 +232,49 @@ const layout = createResource({
   cache: ['Quick Entry', props.doctype],
   params: { doctype: props.doctype, type: 'Quick Entry' },
   auto: true,
+})
+
+const editLayout = computed(() => {
+  const tabs = deepClone(layout.data || [])
+  if (!showReferencePicker.value || !tabs.length) return tabs
+
+  tabs[0].sections.unshift({
+    name: 'alfint_note_reference_section',
+    label: __('Linked record'),
+    opened: true,
+    collapsible: false,
+    columns: [
+      {
+        name: 'alfint_note_reference_type_column',
+        fields: [
+          {
+            fieldname: 'reference_doctype',
+            fieldtype: 'Select',
+            label: __('Record type'),
+            options: referenceTypeOptions,
+            placeholder: __('Select record type'),
+            reqd: true,
+          },
+        ],
+      },
+      {
+        name: 'alfint_note_reference_record_column',
+        fields: [
+          {
+            fieldname: 'reference_docname',
+            fieldtype: 'Dynamic Link',
+            label: __('Record'),
+            options: 'reference_doctype',
+            placeholder: doc.value.reference_doctype
+              ? __('Select record')
+              : __('Select record type first'),
+            reqd: true,
+          },
+        ],
+      },
+    ],
+  })
+  return tabs
 })
 
 const create = createResource({
@@ -417,6 +410,20 @@ watch(
   () => [doc.value.reference_doctype, doc.value.reference_docname],
   loadReferenceIdentity,
   { immediate: true },
+)
+
+watch(
+  () => doc.value.reference_doctype,
+  (value, previousValue) => {
+    if (
+      editing.value &&
+      previousValue &&
+      value !== previousValue &&
+      document.doc.reference_docname
+    ) {
+      document.doc.reference_docname = ''
+    }
+  },
 )
 
 onMounted(async () => {
